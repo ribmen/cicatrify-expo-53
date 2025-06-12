@@ -21,7 +21,6 @@ export default function PatientScreen() {
   
   const [loading, setLoading] = useState(false);
   const [patient, setPatient] = useState<any>();
-  const [patientRegions, setPatientRegions] = useState<string>();
   const [patientName, setPatientName] = useState('');
   const [patientBirthdate, setPatientBirthdate] = useState('');
 
@@ -46,7 +45,6 @@ export default function PatientScreen() {
       console.log("este é o paciente: ", patient);
       setPatientName(patient.name);
       setPatientBirthdate(patient.birthdate);
-      setPatientRegions(patient.regions);
 
       const regions: { name: string; index: number}[] = patient.regions.map((region: string, index: number) => ({
         name: region,
@@ -55,12 +53,7 @@ export default function PatientScreen() {
 
       setRegions(regions);
       console.log("AS REGIOES: ", regions);
-
-
-
-
       console.log('este é o id value: ', idValue)
-      console.log("estas são as regiões do paciente: ", patientRegions)
     }
     setLoading(false);
   }
@@ -81,9 +74,7 @@ export default function PatientScreen() {
       router.push({
         pathname: '/(panel)/profile/PacienteScreen/ImagensDo/[id]',
         params: {id: id, index: index}
-      })/* 
-      console.log("Clicado");
-      console.log('Este é o index: ', index) */
+      })
     };
   
   return (

@@ -8,7 +8,7 @@ import PlusButton from "@/src/components/PlusButton/PlusButton";
 import { supabase } from "@/src/lib/supabase";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { SafeAreaView, StyleSheet, View } from "react-native";
+import { Alert, SafeAreaView, StyleSheet, View } from "react-native";
 import { ImageItem } from '@/src/utils/image';
 import ExpandedImageCard from '@/src/components/ExpandedImageCard/ExpandedImageCard';
 
@@ -30,6 +30,8 @@ export default function ImagesOfPatient() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [nurseId, setNurseId] = useState('');
   const [openedImageId, setOpenedImageId] = useState<string | null>(null);
+
+  const openedImage = images.find(img => img.id === openedImageId);
 
   const { id, index } = useLocalSearchParams();
   
@@ -92,7 +94,7 @@ function getFormattedDateTimeLocale() {
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: false,
-      quality: 1,
+      quality: 0.01,
       base64: true
     })
 
@@ -174,9 +176,76 @@ function getFormattedDateTimeLocale() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    fetchPatientData();
-  }, []);
+  async function handleSaveComment(comment: string) {
+    if (!openedImageId) return;
+    console.log("id da imagem com comentário: ", openedImageId);
+
+    const { error } = await supabase
+      .from('region_images')
+      .update({comment: comment}) // atualiza a coluna comment
+      .eq('id', openedImageId);
+    
+    if (error) {
+      Alert.alert("Erro", "Não foi possível salvar o comentário.");
+      console.error("Erro ao atualizar comentário: ", error);
+    } else {
+      console.log("teste de comentário: ", comment)
+      Alert.alert("Sucesso", "Comentário salvo");
+      await fetchImages();
+      setOpenedImageId(null);
+    }
+  }
+
+  async function handleDeleteImage() {
+    if (!openedImage) return;
+
+    Alert.alert(
+      "Apagar registro",
+      "Tem certeza que deseja apagar esta imagem permanentemente? Esta ação não pode ser desfeita.",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        {
+          text: "Apagar",
+          onPress: async () => {
+            try {
+              const { error: storageError } = await supabase
+                .storage
+                .from('cicatrify-images')
+                .remove([openedImage.image_path]);
+
+              if (storageError) {
+                throw storageError;
+              }
+
+              const { error: dbError } = await supabase
+                .from('region_images')
+                .delete()
+                .eq('id', openedImage.id);
+              
+                if (dbError) {
+                  throw dbError;
+                }
+
+                Alert.alert("Sucesso", "A imagem foi apagada.");
+                setOpenedImageId(null);
+                await fetchImages();
+              } catch (error) {
+                console.error("Erro ao apagar imagem:", error);
+                Alert.alert("Erro", "Não foi possível apagar a imagem.");
+              }
+          },
+          style: "destructive"
+        }
+      ]
+    );
+  }
+
+    useEffect(() => {
+      fetchPatientData();
+    }, []);
 
   return (
     <View style={{ flexGrow: 1 }}>
@@ -187,10 +256,12 @@ function getFormattedDateTimeLocale() {
           <PatientInfoCard icon="landPlot" content={patientRegion} label="Região" />
         </View>
         
-        {openedImageId &&
+        {openedImage &&
           <ExpandedImageCard 
-            image={images.find(img => img.id === openedImageId)?.image_url || ''} 
+            image={openedImage} 
             onClose={() => setOpenedImageId(null)} 
+            onSaveComment={handleSaveComment}
+            onDelete={handleDeleteImage}
           />
         }
 

@@ -4,6 +4,7 @@ export type ImageItem = {
   region: string;
   nurse_id: string;
   created_at: string;
+  comment: string;
   image_path: string;
   image_url: string; // vem da signedUrl
 };

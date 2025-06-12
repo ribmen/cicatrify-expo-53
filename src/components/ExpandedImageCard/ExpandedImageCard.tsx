@@ -1,11 +1,11 @@
 import { 
   Animated, 
-  Dimensions, 
   Easing, 
+  KeyboardAvoidingView, 
+  Platform, 
   StyleSheet, 
   TouchableOpacity, 
   TouchableWithoutFeedback, 
-  Keyboard 
 } from "react-native";
 import { ImageSection } from "./ImageSection";
 import { DescriptionSection } from "./DescriptionSection";
@@ -13,20 +13,32 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import { BlurView } from 'expo-blur';
 import colors from "@/src/constants/colors";
-import { supabase } from "@/src/lib/supabase";
+import { ImageItem } from "@/src/utils/image";
 
 interface ExpandedImageCardProps {
-  image: string;
+  image: ImageItem;
   onClose: () => void;
+  onSaveComment: (comment: string) => void;
+  onDelete: () => void;
 }
 
-const { width, height } = Dimensions.get('window');
-
-const ExpandedImageCard = ({ image, onClose }: ExpandedImageCardProps) => {
+const ExpandedImageCard = ({ image, onClose, onSaveComment, onDelete }: ExpandedImageCardProps) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const [imageDate, setImageDate] = useState("");
-  const [comment, setComment] = useState("");
+  const [comment, setComment] = useState(image.comment || "");
+
+  const getFormattedDate = (dateString: string) => {
+    if (!dateString) return "Data não disponível";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }) + ' às ' + date.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -60,31 +72,39 @@ const ExpandedImageCard = ({ image, onClose }: ExpandedImageCardProps) => {
     });
   };
 
-  const fetchImageInfo = async () => {
-    const { data, error} = await supabase
-      .from('region_images')
-      .select('created_at, comment')
-      .eq('image_url', image);
-    if (error) {
-      console.log('Erro ao buscar data e comentário', error);
-    } else if (data) {
-      
-    }
+  const handleSave = () => {
+    onSaveComment(comment);
+    console.log("este foi o comentário: ", comment);
   }
 
   return (
     <Animated.View style={[styles.overlay, {opacity: fadeAnim}]}>
-      <TouchableWithoutFeedback onPress={handleClose}>
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer} // Usando o novo estilo de dimensionamento
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <TouchableWithoutFeedback onPress={handleClose}>
       <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
       </TouchableWithoutFeedback>
-      <Animated.View style={[styles.container, { transform: [{scale: scaleAnim }] }]}>
-        <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-          <Ionicons name="close" size={24} color="red" />
-        </TouchableOpacity>
+      
+        <Animated.View style={[styles.container, { transform: [{scale: scaleAnim }] }]}>
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <Ionicons name="close" size={24} color="red" />
+          </TouchableOpacity>
 
-        <ImageSection image={image} />
-        <DescriptionSection photoDate={""} photoDescription={""} />
-      </Animated.View>
+          <ImageSection image={image.image_url} />
+
+          <DescriptionSection 
+            photoDate={getFormattedDate(image.created_at)}
+            comment={comment}
+            setComment={setComment}
+            onSave={handleSave}
+            onDelete={onDelete}
+          />
+        </Animated.View>
+      </KeyboardAvoidingView>
+      
+
     </Animated.View>
   );
 };
@@ -99,12 +119,15 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   container: {
-    maxWidth: 345,
+    width: '100%', 
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  keyboardContainer: {
     width: '90%',
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    padding: 0,
-    overflow: 'hidden',
+    maxWidth: 345,
   },
   closeButton: {
     position: 'absolute',
